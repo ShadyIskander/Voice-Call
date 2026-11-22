@@ -1,0 +1,21 @@
+:root { --bg:#e9eef3; --ink:#15233a; --accent:#d9480f; --muted:#5b6b82; }
+@media (prefers-color-scheme: dark) { :root { --bg:#0f1826; --ink:#e8eef6; --muted:#93a3b8; } }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 18px/1.5 Georgia, "Times New Roman", serif; }
+main { max-width: 30rem; margin: 0 auto; padding: 4rem 1.25rem 3rem; }
+h1 { font-size: 2.1rem; line-height: 1.15; margin: 0 0 1rem; }
+.sub { color: var(--muted); margin-bottom: 1.5rem; }
+section { display: flex; flex-direction: column; gap: 1rem; align-items: stretch; }
+textarea { font: inherit; padding: .8rem; border: 2px solid var(--ink); border-radius: 10px; background: transparent; color: inherit; resize: vertical; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.primary { padding: .8rem 1rem; border: 0; border-radius: 10px; background: var(--ink); color: var(--bg); font-weight: 700; }
+.primary:disabled { opacity: .4; cursor: default; }
+.mic { align-self: center; width: 7.5rem; height: 7.5rem; border-radius: 50%; border: 0; background: var(--accent); color: #fff; font-weight: 700; font-size: 1.1rem; }
+.mic.on { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 16px rgba(217,72,15,.2); } }
+@media (prefers-reduced-motion: reduce) { .mic.on { animation: none; box-shadow: 0 0 0 8px rgba(217,72,15,.3); } }
+.link { background: none; border: 0; color: var(--muted); text-decoration: underline; margin-top: 2rem; padding: 0; }
+.err { color: #c92a2a; margin: 0; }
+.ok { margin: 0; }
+a { color: var(--accent); }
