@@ -76,9 +76,30 @@ export async function POST(req) {
     secureCookie: secure,
     salt: secure ? "__Secure-authjs.session-token" : "authjs.session-token",
   });
-  const accessToken = jwt?.access_token;
-  if (!accessToken || jwt?.error) {
+  let accessToken = jwt?.access_token;
+  if (!jwt || jwt.error || !accessToken) {
     return Response.json({ error: "Please sign in again." }, { status: 401 });
+  }
+
+  // The token in the cookie only lasts about an hour, so renew it when needed.
+  if (Date.now() >= (jwt.expires_at ?? 0) * 1000 - 60000) {
+    if (!jwt.refresh_token) {
+      return Response.json({ error: "Please sign out and sign in again." }, { status: 401 });
+    }
+    const r = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: process.env.AUTH_GOOGLE_ID,
+        client_secret: process.env.AUTH_GOOGLE_SECRET,
+        grant_type: "refresh_token",
+        refresh_token: jwt.refresh_token,
+      }),
+    });
+    if (!r.ok) {
+      return Response.json({ error: "Session expired. Please sign out and sign in again." }, { status: 401 });
+    }
+    accessToken = (await r.json()).access_token;
   }
 
   const { text, tz, now } = await req.json();
