@@ -18,9 +18,21 @@ function wall(c, addMinutes = 0) {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00`;
 }
 
+// "next Tuesday" -> the nearest upcoming Tuesday (not the one a week later).
+// If today IS that weekday, keep "next" so it means one week from today.
+const DAY_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+function simplifyNext(text, ref) {
+  return text.replace(
+    /\bnext\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tues|tue|wed|thurs|thur|thu|fri|sat)\b/gi,
+    (m, d) => (DAY_INDEX[d.slice(0, 3).toLowerCase()] === ref.getDay() ? m : m.replace(/^next\s+/i, ""))
+  );
+}
+
 // ---------- Date/time parsing (no AI, free, instant, English) ----------
-function parseLocally(text, now) {
-  const results = chrono.parse(text, refFromClient(now), { forwardDate: true });
+function parseLocally(input, now) {
+  const ref = refFromClient(now);
+  const text = simplifyNext(input, ref);
+  const results = chrono.parse(text, ref, { forwardDate: true });
   if (!results.length) return null;
   const r = results[0];
 
