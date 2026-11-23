@@ -18,7 +18,7 @@ function wall(c, addMinutes = 0) {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00`;
 }
 
-// ---------- 1. No-AI parsing (free, instant, English) ----------
+// ---------- Date/time parsing (no AI, free, instant, English) ----------
 function parseLocally(text, now) {
   const results = chrono.parse(text, refFromClient(now), { forwardDate: true });
   if (!results.length) return null;
@@ -58,47 +58,9 @@ function parseLocally(text, now) {
   return { title, start, end, location: "", description: "" };
 }
 
-// ---------- 2. AI fallback (only when the no-AI parser finds no date) ----------
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-async function askGemini(text, tz, now) {
-  const prompt = `Current local date and time: ${now} (timezone ${tz}).
-Extract ONE calendar event from the text below. Resolve relative dates like "tomorrow" or "next Friday".
-Return JSON: {"title": string, "start": "YYYY-MM-DDTHH:mm:ss", "end": "YYYY-MM-DDTHH:mm:ss", "location": string, "description": string}.
-Times are local, with no timezone offset. If no end time is given, make it 1 hour after start. Use "" for unknown location/description.
-
-Text: """${text}"""`;
-
-  const models = [
-    process.env.GEMINI_MODEL || "gemini-3.8-flash",
-    process.env.GEMINI_FALLBACK_MODEL || "gemini-3.6-flash",
-  ];
-  let lastErr = "AI unavailable";
-  for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const g = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json", temperature: 0 },
-          }),
-        }
-      );
-      if (g.ok) {
-        const gj = await g.json();
-        return JSON.parse(gj.candidates[0].content.parts[0].text);
-      }
-      let detail = "";
-      try { detail = (await g.json())?.error?.message || ""; } catch {}
-      lastErr = `AI error (${g.status}): ${detail.slice(0, 160)}`;
-      if (g.status !== 503 && g.status !== 429) break; // only retry busy errors
-      await sleep(800);
-    }
-  }
-  throw new Error(lastErr);
+// Open /api/add in a browser: if you see "no-ai", the new version is live.
+export async function GET() {
+  return Response.json({ version: "no-ai" });
 }
 
 export async function POST(req) {
@@ -131,23 +93,10 @@ export async function POST(req) {
   }
 
   if (!ev) {
-    if (!process.env.GEMINI_API_KEY) {
-      return Response.json(
-        { error: "Couldn't find a day or time. Try: \"Dentist next Tuesday at 3pm\"." },
-        { status: 422 }
-      );
-    }
-    try {
-      ev = await askGemini(text, tz, now);
-      if (!ev.title || !ev.start || !ev.end) throw new Error("Couldn't find an event in that.");
-      if (isNaN(new Date(ev.start)) || isNaN(new Date(ev.end))) throw new Error("Couldn't read that date.");
-      if (new Date(ev.end) <= new Date(ev.start)) {
-        const e = new Date(new Date(ev.start).getTime() + 3600000);
-        ev.end = `${e.getFullYear()}-${pad(e.getMonth() + 1)}-${pad(e.getDate())}T${pad(e.getHours())}:${pad(e.getMinutes())}:00`;
-      }
-    } catch (err) {
-      return Response.json({ error: err.message || "Couldn't understand that." }, { status: 502 });
-    }
+    return Response.json(
+      { error: "Couldn't find a day or time. Try: \"Dentist next Tuesday at 3pm\"." },
+      { status: 422 }
+    );
   }
 
   const c = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
@@ -161,7 +110,17 @@ export async function POST(req) {
       end: { dateTime: ev.end, timeZone: tz },
     }),
   });
-  if (!c.ok) return Response.json({ error: "Google Calendar rejected the event." }, { status: 502 });
+  if (!c.ok) {
+    let detail = "";
+    try {
+      detail = (await c.json())?.error?.message || "";
+    } catch {}
+    console.error("Calendar error", c.status, detail);
+    return Response.json(
+      { error: `Google Calendar error (${c.status}): ${detail.slice(0, 200) || "no details"}` },
+      { status: 502 }
+    );
+  }
 
   const created = await c.json();
   return Response.json({ title: ev.title, start: ev.start, end: ev.end, link: created.htmlLink });
