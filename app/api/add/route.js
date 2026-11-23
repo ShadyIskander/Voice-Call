@@ -48,7 +48,18 @@ Text: """${text}"""`;
       }),
     }
   );
-  if (!g.ok) return Response.json({ error: "Couldn't understand that (AI error)." }, { status: 502 });
+  if (!g.ok) {
+    let detail = "";
+    try {
+      const body = await g.json();
+      detail = body?.error?.message || "";
+    } catch {}
+    console.error("Gemini error", g.status, detail);
+    return Response.json(
+      { error: `AI error (${g.status}): ${detail.slice(0, 200) || "no details"}` },
+      { status: 502 }
+    );
+  }
 
   let ev;
   try {
