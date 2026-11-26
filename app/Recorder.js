@@ -1,8 +1,25 @@
 "use client";
 import { useRef, useState } from "react";
 
+// Google Calendar event colors. "" = default (the calendar's own color).
+const COLORS = [
+  { id: "", name: "Default (calendar color)" },
+  { id: "1", name: "Lavender" },
+  { id: "2", name: "Sage" },
+  { id: "3", name: "Grape" },
+  { id: "4", name: "Flamingo" },
+  { id: "5", name: "Banana" },
+  { id: "6", name: "Tangerine" },
+  { id: "7", name: "Peacock" },
+  { id: "8", name: "Graphite" },
+  { id: "9", name: "Blueberry" },
+  { id: "10", name: "Basil" },
+  { id: "11", name: "Tomato" },
+];
+
 export default function Recorder() {
   const [text, setText] = useState("");
+  const [colorId, setColorId] = useState("");
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -38,7 +55,7 @@ export default function Recorder() {
       const res = await fetch("/api/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, tz, now }),
+        body: JSON.stringify({ text, tz, now, colorId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
@@ -65,6 +82,11 @@ export default function Recorder() {
         rows={3}
         maxLength={500}
       />
+      <select value={colorId} onChange={(e) => setColorId(e.target.value)} aria-label="Event color">
+        {COLORS.map((c) => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </select>
       <button className="primary" onClick={add} disabled={busy || !text.trim()}>
         {busy ? "Adding…" : "Add to calendar"}
       </button>
