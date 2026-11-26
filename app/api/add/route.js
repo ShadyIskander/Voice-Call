@@ -4,6 +4,9 @@ import * as chrono from "chrono-node";
 
 const pad = (n) => String(n).padStart(2, "0");
 
+// Google Calendar event colors: "1" to "11". Anything else = calendar default.
+const VALID_COLORS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"];
+
 // The browser sends "2026-11-23T14:05 (Monday)": the user's own local clock.
 function refFromClient(now) {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(now || "");
@@ -114,9 +117,12 @@ export async function POST(req) {
     accessToken = (await r.json()).access_token;
   }
 
-  const { text, tz, now } = await req.json();
+  const { text, tz, now, colorId } = await req.json();
   if (!text?.trim()) return Response.json({ error: "Say or type something first." }, { status: 400 });
   if (text.length > 500) return Response.json({ error: "That's too long. Keep it to one event." }, { status: 400 });
+
+  // Empty / invalid -> undefined, so Google uses the calendar's default color.
+  const color = VALID_COLORS.includes(String(colorId)) ? String(colorId) : undefined;
 
   let ev = null;
   try {
@@ -139,6 +145,7 @@ export async function POST(req) {
       summary: ev.title,
       location: ev.location || undefined,
       description: ev.description || undefined,
+      colorId: color,
       start: { dateTime: ev.start, timeZone: tz },
       end: { dateTime: ev.end, timeZone: tz },
     }),
